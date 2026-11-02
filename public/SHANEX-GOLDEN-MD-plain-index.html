@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SHANEX GOLDEN MD</title>
+</head>
+<body bgcolor="#101010" text="#f5c451">
+<center>
+<h1>SHANEX GOLDEN MD</h1>
+<p>WHATSAPP MD - PAIRING CENTER</p>
+<hr>
+<h2>Scan QR Code</h2>
+<p>WhatsApp → Linked devices → Link a device</p>
+<div id="qrArea">Waiting for QR code...</div>
+<hr>
+<h2>Get Pairing Code</h2>
+<p>Enter your WhatsApp number with country code.</p>
+<form id="pairForm">
+<input id="phone" type="tel" inputmode="numeric" placeholder="947XXXXXXXX" minlength="8" maxlength="15" required>
+<br><br>
+<input type="submit" value="GENERATE PAIR CODE">
+</form>
+<p id="message">Ready</p>
+<h2 id="pairCode"></h2>
+<button id="copyButton" type="button" hidden>Copy Pair Code</button>
+<hr>
+<p id="status">Connecting to WhatsApp...</p>
+<p>OWNER: SHANUKA UMANGA</p>
+</center>
+<script>
+const el = id => document.getElementById(id);
+let code = "";
+
+async function updateStatus() {
+  try {
+    const r = await fetch("/api/status", {cache:"no-store"});
+    const d = await r.json();
+    el("status").textContent = d.status || "Bot status received";
+    if (d.qr) {
+      el("qrArea").innerHTML = "";
+      const img = document.createElement("img");
+      img.src = d.qr;
+      img.alt = "WhatsApp QR Code";
+      img.width = 220;
+      img.height = 220;
+      el("qrArea").appendChild(img);
+    } else {
+      el("qrArea").textContent = d.status || "Waiting for QR code...";
+    }
+  } catch (e) {
+    el("status").textContent = "Dashboard loaded; waiting for bot backend.";
+  }
+}
+
+el("pairForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  const phone = el("phone").value.replace(/\D/g, "");
+  if (!/^[0-9]{8,15}$/.test(phone)) {
+    el("message").textContent = "Enter a valid number including country code.";
+    return;
+  }
+  const submit = el("pairForm").querySelector('input[type="submit"]');
+  submit.disabled = true;
+  submit.value = "PLEASE WAIT...";
+  el("message").textContent = "Requesting pairing code...";
+  el("pairCode").textContent = "";
+  el("copyButton").hidden = true;
+  try {
+    const r = await fetch("/api/pair", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({phone})
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || d.message || "Request failed: HTTP " + r.status);
+    if (!d.pairCode) throw new Error(d.error || d.message || "No pairing code returned by server.");
+    code = String(d.pairCode);
+    el("pairCode").textContent = code;
+    el("copyButton").hidden = false;
+    el("message").textContent = "Pair code generated. Enter it in WhatsApp.";
+  } catch (e) {
+    el("message").textContent = e.message;
+  } finally {
+    submit.disabled = false;
+    submit.value = "GENERATE PAIR CODE";
+  }
+});
+
+el("copyButton").addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText(code);
+    el("message").textContent = "Pair code copied.";
+  } catch {
+    el("message").textContent = "Please select and copy the code manually: " + code;
+  }
+});
+
+updateStatus();
+setInterval(updateStatus, 3000);
+</script>
+</body>
+</html>
